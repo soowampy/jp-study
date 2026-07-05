@@ -1,0 +1,164 @@
+# vocab-mvp 이슈 분해
+
+> 출처: `docs/prd.md`. 각 이슈는 독립적으로 TDD 사이클(Red→Green→Refactor)을 돌릴 수 있는 **수직 슬라이스**다.
+> 의존성 순서: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 (앞 이슈 결과가 다음 이슈 입력).
+
+---
+
+## #1. 프로젝트 셋업 + DB 스키마 + 홈(빈 상태)
+
+**수직 슬라이스 검증**: 앱이 실행되고 홈에서 "단어장 없음" 빈 상태가 보인다. (Walking skeleton — 이후 모든 이슈의 토대)
+
+Next.js(App Router, TS) + Tailwind + Prisma + 로컬 SQLite 셋업. `VocabSet/Word/WordSrs/QuizAttempt` 4개 모델 마이그레이션. 홈(`/`)에서 단어장 목록(빈 상태)을 렌더.
+
+### Acceptance Criteria
+- [ ] Given 마이그레이션이 적용된 상태, When `prisma migrate`를 실행하면, Then 4개 테이블(vocab_set, word, word_srs, quiz_attempt)이 생성된다.
+- [ ] Given 단어장이 0개일 때, When 홈(`/`)에 접속하면, Then "단어장이 없습니다" 빈 상태와 업로드 버튼이 보인다.
+- [ ] Given 시드로 단어장 1개가 있을 때, When 홈에 접속하면, Then 그 단어장 이름이 목록에 보인다.
+
+**의존성**: 없음 (최초)
+
+---
+
+## #2. PDF 업로드 + 텍스트 추출
+
+**수직 슬라이스 검증**: 사용자가 PDF를 올리면 추출된 텍스트/줄 수가 화면에 보인다.
+
+업로드 화면(드롭존). 서버가 파일 검증(PDF·10MB) 후 unpdf layout 모드로 텍스트 추출, 결과 미리보기 반환.
+
+### Acceptance Criteria
+- [ ] Given 유효한 PDF, When 업로드하면, Then unpdf가 추출한 텍스트 줄 수/미리보기가 화면에 표시된다.
+- [ ] Given PDF가 아닌 파일 또는 10MB 초과, When 업로드하면, Then 사유와 함께 거부 메시지가 표시된다.
+- [ ] Given 텍스트를 추출할 수 없는 PDF(빈 결과), When 업로드하면, Then "텍스트를 추출할 수 없습니다" 안내가 표시된다.
+
+**의존성**: #1
+
+---
+
+## #3. AI 파싱(Pass 1) + 잡 러너 + 폴링 진행바
+
+**수직 슬라이스 검증**: 추출 텍스트가 `漢字/후리가나/뜻` 표로 구조화되어 검수 화면에 보인다.
+
+**잡 러너 인프라(ADR-1)를 최초로 구축**: 잡 시작 → 청크 루프 → 진행률 DB 갱신 → `GET /api/jobs/:id` 폴링. Pass 1 프롬프트로 청크를 파싱해 `{kanji, reading, meaning_ko}` 배열 생성(후리가나 소스 우선). 청크 실패 시 최대 3회 재시도.
+
+### Acceptance Criteria
+- [ ] Given 추출 텍스트, When 파싱 잡을 시작하면, Then 잡이 생성되고 `GET /api/jobs/:id`가 `processed/total` 진행률을 반환한다.
+- [ ] Given 파싱 완료, When 검수 화면을 보면, Then 각 행이 `漢字/후리가나/뜻`으로 구조화되어 표시된다.
+- [ ] Given 읽기 컬럼이 있는 소스 행, When 파싱하면, Then reading은 소스값을 사용한다(AI 미보완).
+- [ ] Given 청크 1개가 JSON 파싱 실패, When 잡이 진행되면, Then 그 청크만 최대 3회 재시도하고 나머지는 정상 처리된다.
+
+**의존성**: #2
+
+---
+
+## #4. 검수 화면 편집 + 확정
+
+**수직 슬라이스 검증**: 사용자가 파싱 결과를 고치고 "확정"하면 단어장이 DB에 저장된다.
+
+검수 표에서 행 단위 수정·삭제·추가. 실패/애매 행 강조(ADR-3 대비). "이 단어장으로 확정" 시 VocabSet + Word 레코드 저장.
+
+### Acceptance Criteria
+- [ ] Given 검수 표, When 행을 수정/삭제/추가하면, Then 변경이 표에 즉시 반영된다.
+- [ ] Given 파싱 실패로 표시된 행, When 검수 화면을 보면, Then 해당 행이 시각적으로 강조된다.
+- [ ] Given 최소 1개 이상의 행, When "확정"하면, Then VocabSet과 Word가 저장되고 단어장 상세로 이동한다.
+- [ ] Given 모든 행을 삭제한 상태, When "확정"하면, Then "최소 1개 단어가 필요합니다" 안내로 확정이 막힌다.
+- [ ] Given reading이 빈 행, When "확정"하면, Then reading을 채우도록 요구한다(kana 단어는 kanji=null 허용).
+
+**의존성**: #3
+
+---
+
+## #5. AI 생성(Pass 2) enrichment 잡 + 폴링
+
+**수직 슬라이스 검증**: 확정 후 진행바가 돌고, 완료되면 각 단어에 유의어·예문이 붙는다.
+
+확정 시 Enrichment Job 시작(#3의 잡 러너 재사용). 20개 묶음으로 Pass 2 호출, `synonyms`/`examples` 저장. 청크 실패 시 최대 3회 재시도, 최종 실패 단어는 "재시도" 표시.
+
+### Acceptance Criteria
+- [ ] Given 확정된 단어장, When enrichment 잡이 시작되면, Then 진행바가 `processed/total`로 폴링 갱신된다.
+- [ ] Given 잡 완료, When 단어를 보면, Then 유의어 1~3개와 예문 2개(jp/reading/ko)가 저장되어 있다.
+- [ ] Given 단어장당 잡이 실행 중, When 같은 단어장에 잡을 또 시작하면, Then 중복 실행이 차단된다.
+- [ ] Given 특정 청크가 3회 재시도 후에도 실패, When 잡이 끝나면, Then 그 단어는 저장되되 "생성 실패, 재시도"로 표시된다.
+
+**의존성**: #4
+
+---
+
+## #6. 단어장 뷰 (카드 리스트 + 검색/필터)
+
+**수직 슬라이스 검증**: 단어장을 열면 카드 리스트로 뜻·유의어·예문·레벨을 보고 검색/필터할 수 있다.
+
+`漢字/후리가나/뜻/유의어/예문` 카드. SRS 레벨 뱃지(0~5). 검색 + 필터(레벨별, 미학습/복습필요).
+
+### Acceptance Criteria
+- [ ] Given enrichment 완료 단어장, When 상세를 열면, Then 각 단어 카드에 漢字/후리가나/뜻/유의어/예문이 보인다.
+- [ ] Given 단어들, When 레벨 뱃지를 보면, Then 각 단어의 SRS 레벨(0~5)이 표시된다.
+- [ ] Given 검색어 입력, When 필터를 적용하면, Then 일치하는 단어만 표시된다.
+- [ ] Given "복습필요" 필터, When 적용하면, Then `next_review_date <= today`인 단어만 보인다.
+
+**의존성**: #5
+
+---
+
+## #7. 4지선다 퀴즈 (양방향) + 세션 결과
+
+**수직 슬라이스 검증**: 퀴즈를 시작해 4지선다를 풀고 세션 요약(정답률)을 본다.
+
+정방향(漢字+후리가나→뜻)·역방향(뜻→단어) 4지선다. 오답 보기 3개는 같은 단어장 랜덤. 세션 20문제. QuizAttempt 기록. 종료 시 정답률·소요시간·틀린 단어 요약.
+
+### Acceptance Criteria
+- [ ] Given 단어 4개 이상 단어장, When 정방향 퀴즈를 시작하면, Then 문제=漢字+후리가나, 보기=정답 뜻+랜덤 오답 뜻 3개가 나온다.
+- [ ] Given 역방향 퀴즈, When 문제가 나오면, Then 문제=한국어 뜻, 보기=정답 단어+랜덤 오답 단어 3개다.
+- [ ] Given 단어 4개 미만, When 퀴즈를 시작하면, Then "단어가 4개 이상이어야 합니다" 안내로 막힌다.
+- [ ] Given 세션 종료, When 결과 화면을 보면, Then 정답률·소요시간·틀린 단어 목록이 요약된다.
+
+**의존성**: #6
+
+---
+
+## #8. 경량 SRS (Leitner) — 레벨·복습일 갱신 + 출제 우선순위
+
+**수직 슬라이스 검증**: 정·오답에 따라 레벨/다음 복습일이 바뀌고, 다음 세션에 복습 대상이 우선 출제된다.
+
+정답: `level=min(level+1,5)`, `next_review_date=today+interval[level]`. 오답: `level=0`, `next_review_date=today`. `last_reviewed_at`, `correct/wrong_count` 기록. 출제 우선순위 = 복습 대상 → 미학습.
+
+### Acceptance Criteria
+- [ ] Given 레벨 2 단어, When 정답 처리하면, Then 레벨 3, next_review_date=today+7일이 된다.
+- [ ] Given 임의 레벨 단어, When 오답 처리하면, Then 레벨 0, next_review_date=today가 된다.
+- [ ] Given 정/오답 처리, When 갱신되면, Then last_reviewed_at과 correct/wrong_count가 기록된다.
+- [ ] Given 복습 대상과 미학습이 섞인 단어장, When 세션을 구성하면, Then 복습 대상(`next_review_date<=today`)이 먼저, 그 다음 미학습이 출제된다.
+- [ ] Given 출제 대상이 20개 미만, When 세션을 시작하면, Then 있는 만큼만 구성된다.
+
+**의존성**: #7
+
+---
+
+## #9. 진도 대시보드
+
+**수직 슬라이스 검증**: 홈에서 진도율·오늘 복습 수·레벨 분포·단어장별 진도를 본다.
+
+진도율=(레벨 4 이상 수)/(전체 수)×100. 오늘 복습 수, 미학습 수. 레벨별(0~5) 막대그래프. 단어장별 진도.
+
+### Acceptance Criteria
+- [ ] Given 단어들의 레벨, When 대시보드를 보면, Then 진도율=(레벨 4+ 수/전체 수)×100이 표시된다.
+- [ ] Given 오늘 기준, When 대시보드를 보면, Then 오늘 복습할 단어 수와 미학습 수가 표시된다.
+- [ ] Given 레벨 분포, When 대시보드를 보면, Then 0~5 레벨별 막대그래프가 표시된다.
+- [ ] Given 단어장이 여러 개, When 대시보드를 보면, Then 단어장별 진도가 표시된다.
+
+**의존성**: #8 (SRS 레벨이 있어야 진도율 의미)
+
+---
+
+## 의존성 그래프
+
+```
+#1 셋업+스키마
+   → #2 업로드+추출
+      → #3 파싱+잡러너+폴링
+         → #4 검수+확정
+            → #5 생성(enrichment)
+               → #6 단어장 뷰
+                  → #7 퀴즈(양방향)+결과
+                     → #8 SRS 갱신+우선순위
+                        → #9 대시보드
+```
