@@ -23,6 +23,10 @@ function choiceClass(
   return `${base} border-gray-200 bg-white opacity-40`;
 }
 
+/** 화면 전환 직후 이 시간(ms) 안에 온 클릭은 무시한다. 더블클릭·고스트 클릭이
+ *  같은 좌표의 다른 버튼('다음'/보기)에 꽂혀 의도치 않은 진행·오답이 되는 것을 막는다. */
+const CLICK_GUARD_MS = 250;
+
 export function QuizPlayer({
   questions,
   onAnswer,
@@ -36,6 +40,9 @@ export function QuizPlayer({
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
   const [hintShown, setHintShown] = useState(false);
   const startedAtRef = useRef(new Date());
+  const transitionAtRef = useRef(0);
+
+  const guarded = () => Date.now() - transitionAtRef.current < CLICK_GUARD_MS;
 
   if (index >= questions.length) {
     const summary = summarizeSession(answers, startedAtRef.current, new Date());
@@ -78,19 +85,22 @@ export function QuizPlayer({
 
   // choiceIndex가 null이면 "정답 보기"(오답 처리). 답은 문제당 1회만 제출된다.
   const submit = (choiceIndex: number | null) => {
-    if (inFeedback) return;
+    if (inFeedback || guarded()) return;
     const isCorrect = choiceIndex === q.answerIndex;
     onAnswer?.(q.wordId, isCorrect);
     setAnswers((prev) => [...prev, { wordId: q.wordId, isCorrect }]);
     setPickedIndex(choiceIndex);
     setPhase("feedback");
+    transitionAtRef.current = Date.now();
   };
 
   const next = () => {
+    if (guarded()) return;
     setIndex(index + 1);
     setPhase("question");
     setPickedIndex(null);
     setHintShown(false);
+    transitionAtRef.current = Date.now();
   };
 
   return (

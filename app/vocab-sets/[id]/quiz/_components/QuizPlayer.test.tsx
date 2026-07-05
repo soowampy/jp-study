@@ -64,19 +64,51 @@ describe("QuizPlayer", () => {
   });
 
   it("'다음' 클릭 시 다음 문제로 진행하고 마지막 문제 후 결과가 요약된다", () => {
+    vi.useFakeTimers();
     render(<QuizPlayer questions={[q1, q2]} />);
 
     fireEvent.click(screen.getByRole("button", { name: "물" })); // q1 정답
+    vi.advanceTimersByTime(300);
     fireEvent.click(screen.getByRole("button", { name: "다음" }));
 
     expect(screen.getByText("秋")).toBeInTheDocument();
 
+    vi.advanceTimersByTime(300);
     fireEvent.click(screen.getByRole("button", { name: "가을" })); // q2 정답
+    vi.advanceTimersByTime(300);
     fireEvent.click(screen.getByRole("button", { name: "다음" }));
 
     expect(screen.getByText(/정답률/)).toBeInTheDocument();
     expect(screen.getByText(/100%/)).toBeInTheDocument();
     expect(screen.getByText(/소요시간/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("전환 직후(250ms 이내)의 클릭은 무시된다 — 더블클릭/고스트 클릭 방지", () => {
+    vi.useFakeTimers();
+    const onAnswer = vi.fn();
+    render(<QuizPlayer questions={[q1, q2]} onAnswer={onAnswer} />);
+
+    // 답 선택 직후 같은 좌표에 온 '다음'이 곧바로 눌려도 무시된다
+    fireEvent.click(screen.getByRole("button", { name: "물" }));
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(screen.getByText("정답!")).toBeInTheDocument(); // 아직 피드백 화면
+
+    // 250ms 지난 뒤의 '다음'은 정상 동작
+    vi.advanceTimersByTime(300);
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+    expect(screen.getByText("秋")).toBeInTheDocument();
+
+    // 문제 전환 직후의 보기 클릭도 무시된다 (의도치 않은 오답 방지)
+    fireEvent.click(screen.getByRole("button", { name: "물" }));
+    expect(onAnswer).toHaveBeenCalledTimes(1); // q1 답변 1건뿐
+    expect(screen.queryByText("오답")).not.toBeInTheDocument();
+
+    // 250ms 뒤에는 정상 제출
+    vi.advanceTimersByTime(300);
+    fireEvent.click(screen.getByRole("button", { name: "가을" }));
+    expect(screen.getByText("정답!")).toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it("'힌트 보기' 클릭 시 힌트가 표시되고, 힌트가 없으면 버튼이 비활성이다", () => {
