@@ -4,7 +4,7 @@ import {
   parseEnrichmentJson,
   type Enrichment,
 } from "@/lib/enrich";
-import { generateJson } from "@/lib/gemini";
+import { generateJson, GEMINI_MIN_CALL_INTERVAL_MS } from "@/lib/gemini";
 import { runWithRetry } from "@/lib/jobRunner";
 import { createJob, setProgress, completeJob } from "@/lib/jobs";
 
@@ -70,7 +70,7 @@ export async function startEnrichmentJob(setId: number): Promise<number | null> 
   const job = await createJob("enrich", batches.length, setId);
 
   void (async () => {
-    await runWithRetry<WordRow[], never>(
+    const { lastError } = await runWithRetry<WordRow[], never>(
       batches,
       async (batch) => {
         const raw = await generateJson(buildEnrichPrompt(batch));
@@ -87,11 +87,13 @@ export async function startEnrichmentJob(setId: number): Promise<number | null> 
         maxRetries: 3,
         onProgress: (processed) => setProgress(job.id, processed),
         onChunkFailed: (batch) => markEnrichFailed(batch.map((w) => w.id)),
+        minCallIntervalMs: GEMINI_MIN_CALL_INTERVAL_MS,
       },
     );
-    await completeJob(job.id, "done", "[]");
-  })().catch(async () => {
-    await completeJob(job.id, "failed", "[]");
+    await completeJob(job.id, "done", "[]", lastError);
+  })().catch(async (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    await completeJob(job.id, "failed", "[]", message);
   });
 
   return job.id;

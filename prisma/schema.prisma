@@ -65,6 +65,7 @@ model Job {
   processed  Int      @default(0)
   total      Int      @default(0)
   resultJson String? // 파싱 결과(초안) JSON
+  error      String? // 실패 시 마지막 에러 메시지 (사유 표시용)
   setId      Int? // enrich 잡이 연결되는 VocabSet (#5)
   createdAt  DateTime @default(now())
 

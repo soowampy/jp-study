@@ -1,5 +1,5 @@
 import { chunkText, parseWordsJson, type ParsedWord } from "@/lib/parse";
-import { generateJson } from "@/lib/gemini";
+import { generateJson, GEMINI_MIN_CALL_INTERVAL_MS } from "@/lib/gemini";
 import { runWithRetry } from "@/lib/jobRunner";
 import { createJob, setProgress, completeJob } from "@/lib/jobs";
 
@@ -26,19 +26,21 @@ export async function startParseJob(text: string): Promise<number> {
   const job = await createJob("parse", chunks.length);
 
   void (async () => {
-    const { results, failedChunks } = await runWithRetry<string, ParsedWord>(
+    const { results, failedChunks, lastError } = await runWithRetry<string, ParsedWord>(
       chunks,
       async (chunk) => parseWordsJson(await generateJson(buildParsePrompt(chunk))),
       {
         maxRetries: 3,
         onProgress: (processed) => setProgress(job.id, processed),
+        minCallIntervalMs: GEMINI_MIN_CALL_INTERVAL_MS,
       },
     );
     const status =
       results.length === 0 && failedChunks > 0 ? "failed" : "done";
-    await completeJob(job.id, status, JSON.stringify(results));
-  })().catch(async () => {
-    await completeJob(job.id, "failed", "[]");
+    await completeJob(job.id, status, JSON.stringify(results), lastError);
+  })().catch(async (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    await completeJob(job.id, "failed", "[]", message);
   });
 
   return job.id;

@@ -13,9 +13,14 @@ export function setProgress(id: number, processed: number) {
   return prisma.job.update({ where: { id }, data: { processed } });
 }
 
-export function completeJob(id: number, status: string, resultJson: string) {
+export function completeJob(
+  id: number,
+  status: string,
+  resultJson: string,
+  error?: string,
+) {
   return prisma.job.update({
     where: { id },
-    data: { status, resultJson },
+    data: { status, resultJson, error: error ?? null },
   });
 }
