@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { EnrichProgress } from "@/app/vocab-sets/[id]/_components/EnrichProgress";
+import { WordCardList } from "@/app/vocab-sets/[id]/_components/WordCardList";
+import { toWordCard } from "@/lib/wordCards";
 
 export default async function VocabSetPage({
   params,
@@ -25,11 +27,21 @@ export default async function VocabSetPage({
     orderBy: { id: "desc" },
   });
 
+  const words = await prisma.word.findMany({
+    where: { setId },
+    include: { srs: true },
+    orderBy: { id: "asc" },
+  });
+  const cards = words.map((w) => toWordCard(w, new Date()));
+
   return (
     <main className="mx-auto max-w-3xl p-8">
       <h1 className="mb-2 text-2xl font-bold">{set.name}</h1>
       <p className="mb-6 text-sm text-gray-500">{set._count.words}개 단어</p>
       {job && <EnrichProgress jobId={job.id} />}
+      <div className="mt-6">
+        <WordCardList cards={cards} />
+      </div>
     </main>
   );
 }

@@ -34,7 +34,7 @@ export function EnrichProgress({ jobId }: { jobId: number }) {
   if (job.status === "done") {
     return (
       <p className="text-sm text-green-600">
-        생성 완료 ✓ (단어 카드는 #6에서 표시됩니다)
+        생성 완료 ✓
       </p>
     );
   }
