@@ -1,8 +1,9 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ParseReviewTable } from "@/app/review/_components/ParseReviewTable";
-import type { ParsedWord } from "@/lib/parse";
+import { useRouter } from "next/navigation";
+import { ReviewEditor } from "@/app/review/_components/ReviewEditor";
+import type { EditableWord } from "@/lib/confirm";
 
 type Job = {
   status: string;
@@ -17,7 +18,9 @@ export default function ReviewPage({
   params: Promise<{ jobId: string }>;
 }) {
   const { jobId } = use(params);
+  const router = useRouter();
   const [job, setJob] = useState<Job | null>(null);
+  const [name, setName] = useState("새 단어장");
 
   useEffect(() => {
     let stopped = false;
@@ -34,12 +37,21 @@ export default function ReviewPage({
     };
   }, [jobId]);
 
+  async function handleConfirm(words: EditableWord[]) {
+    const res = await fetch("/api/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, words }),
+    });
+    if (res.ok) router.push("/");
+  }
+
   if (!job) {
     return <main className="mx-auto max-w-3xl p-8">불러오는 중…</main>;
   }
 
-  const words: ParsedWord[] = job.resultJson
-    ? (JSON.parse(job.resultJson) as ParsedWord[])
+  const words: EditableWord[] = job.resultJson
+    ? (JSON.parse(job.resultJson) as EditableWord[])
     : [];
 
   return (
@@ -57,7 +69,19 @@ export default function ReviewPage({
         </p>
       )}
 
-      {words.length > 0 && <ParseReviewTable words={words} />}
+      {job.status === "done" && (
+        <>
+          <label className="mb-4 flex items-center gap-2 text-sm">
+            <span className="text-gray-500">단어장 이름</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="rounded border border-gray-300 px-2 py-1"
+            />
+          </label>
+          <ReviewEditor initialWords={words} onConfirm={handleConfirm} />
+        </>
+      )}
     </main>
   );
 }
