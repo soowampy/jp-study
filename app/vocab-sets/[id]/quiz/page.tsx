@@ -5,6 +5,7 @@ import {
   MIN_QUIZ_WORDS,
   type QuizDirection,
 } from "@/lib/quiz";
+import { selectSessionWords } from "@/lib/srs";
 import { QuizSession } from "@/app/vocab-sets/[id]/quiz/_components/QuizSession";
 
 export default async function QuizPage({
@@ -27,7 +28,7 @@ export default async function QuizPage({
 
   const words = await prisma.word.findMany({
     where: { setId },
-    select: { id: true, kanji: true, reading: true, meaningKo: true },
+    include: { srs: true },
     orderBy: { id: "asc" },
   });
 
@@ -64,7 +65,21 @@ export default async function QuizPage({
     );
   }
 
-  const questions = buildQuizSession(words, direction as QuizDirection);
+  const sessionWords = selectSessionWords(words, new Date());
+  if (sessionWords.length === 0) {
+    return (
+      <main className="mx-auto max-w-3xl p-8">
+        <p className="mb-4">오늘 출제할 단어가 없습니다. (복습 대상·미학습 없음)</p>
+        <Link href={`/vocab-sets/${setId}`} className="text-blue-600 underline">
+          단어장으로 돌아가기
+        </Link>
+      </main>
+    );
+  }
+
+  const questions = buildQuizSession(sessionWords, direction as QuizDirection, {
+    pool: words,
+  });
 
   return (
     <main className="mx-auto max-w-3xl p-8">

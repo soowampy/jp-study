@@ -93,6 +93,22 @@ describe("buildQuizSession", () => {
   });
 });
 
+describe("buildQuizSession — pool 옵션 (#8)", () => {
+  it("세션 단어 순서를 유지하고 오답 보기는 pool에서 뽑는다", () => {
+    const session = [words[1], words[0]]; // 우선순위대로 정렬된 2개
+
+    const questions = buildQuizSession(session, "word_to_meaning", {
+      pool: words,
+    });
+
+    expect(questions.map((q) => q.wordId)).toEqual([2, 1]);
+    for (const q of questions) {
+      expect(q.choices).toHaveLength(4);
+      expect(new Set(q.choices).size).toBe(4);
+    }
+  });
+});
+
 describe("summarizeSession", () => {
   const answers = [
     { wordId: 1, isCorrect: true },

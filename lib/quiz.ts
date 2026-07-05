@@ -52,15 +52,20 @@ function choiceLabel(word: QuizWord, direction: QuizDirection): string {
 export function buildQuizSession(
   words: QuizWord[],
   direction: QuizDirection,
+  opts: { pool?: QuizWord[] } = {},
 ): QuizQuestion[] {
-  if (words.length < MIN_QUIZ_WORDS) {
+  const pool = opts.pool ?? words;
+  if (pool.length < MIN_QUIZ_WORDS) {
     throw new Error("단어가 4개 이상이어야 합니다");
   }
 
-  const selected = shuffle(words).slice(0, SESSION_SIZE);
+  // pool이 주어지면 words는 이미 우선순위로 선별된 세션 — 순서를 유지한다. (#8)
+  const selected = opts.pool
+    ? words.slice(0, SESSION_SIZE)
+    : shuffle(words).slice(0, SESSION_SIZE);
 
   return selected.map((word) => {
-    const wrong = shuffle(words.filter((w) => w.id !== word.id))
+    const wrong = shuffle(pool.filter((w) => w.id !== word.id))
       .slice(0, 3)
       .map((w) => choiceLabel(w, direction));
     const answer = choiceLabel(word, direction);
