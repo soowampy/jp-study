@@ -17,6 +17,7 @@ export type QuizQuestion = {
   choices: string[];
   answerIndex: number;
   hint: string | null; // 예문 jp 우선, 없으면 유의어 (#10)
+  choiceMeanings: string[] | null; // 역방향 피드백용: 보기 순서대로 각 단어의 뜻 (#10)
 };
 
 export type QuizAnswer = { wordId: number; isCorrect: boolean };
@@ -69,11 +70,8 @@ export function buildQuizSession(
     : shuffle(words).slice(0, size);
 
   return selected.map((word) => {
-    const wrong = shuffle(pool.filter((w) => w.id !== word.id))
-      .slice(0, 3)
-      .map((w) => choiceLabel(w, direction));
-    const answer = choiceLabel(word, direction);
-    const choices = shuffle([answer, ...wrong]);
+    const wrong = shuffle(pool.filter((w) => w.id !== word.id)).slice(0, 3);
+    const choiceWords = shuffle([word, ...wrong]);
 
     return {
       wordId: word.id,
@@ -84,9 +82,13 @@ export function buildQuizSession(
           : word.meaningKo,
       promptReading:
         direction === "word_to_meaning" && word.kanji ? word.reading : null,
-      choices,
-      answerIndex: choices.indexOf(answer),
+      choices: choiceWords.map((w) => choiceLabel(w, direction)),
+      answerIndex: choiceWords.findIndex((w) => w.id === word.id),
       hint: word.examples?.[0]?.jp ?? word.synonyms?.[0] ?? null,
+      choiceMeanings:
+        direction === "meaning_to_word"
+          ? choiceWords.map((w) => w.meaningKo)
+          : null,
     };
   });
 }

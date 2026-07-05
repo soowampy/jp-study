@@ -125,6 +125,11 @@ export function QuizPlayer({
             className={choiceClass(i, q.answerIndex, pickedIndex, inFeedback)}
           >
             {choice}
+            {inFeedback && q.choiceMeanings && (
+              <span className="ml-2 text-xs text-gray-500">
+                {q.choiceMeanings[i]}
+              </span>
+            )}
           </button>
         ))}
       </div>

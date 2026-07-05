@@ -59,6 +59,25 @@ describe("buildQuizSession", () => {
     }
   });
 
+  it("역방향: choiceMeanings가 보기 순서대로 각 단어의 뜻을 담는다", () => {
+    const questions = buildQuizSession(words, "meaning_to_word");
+    const q = questions.find((q) => q.wordId === 1)!;
+
+    const meaningByLabel = new Map(
+      words.map((w) => [w.kanji ?? w.reading, w.meaningKo]),
+    );
+    expect(q.choiceMeanings).toHaveLength(4);
+    q.choices.forEach((choice, i) => {
+      expect(q.choiceMeanings![i]).toBe(meaningByLabel.get(choice));
+    });
+  });
+
+  it("정방향: choiceMeanings는 null이다(보기가 이미 뜻)", () => {
+    const questions = buildQuizSession(words, "word_to_meaning");
+
+    expect(questions[0].choiceMeanings).toBeNull();
+  });
+
   it("단어가 4개 미만이면 '단어가 4개 이상이어야 합니다' 에러를 던진다", () => {
     expect(() => buildQuizSession(words.slice(0, 3), "word_to_meaning")).toThrow(
       "단어가 4개 이상이어야 합니다",

@@ -11,6 +11,7 @@ const q1: QuizQuestion = {
   choices: ["물", "가을", "사과", "산"],
   answerIndex: 0,
   hint: "水を飲む。",
+  choiceMeanings: null,
 };
 const q2: QuizQuestion = {
   wordId: 2,
@@ -20,6 +21,17 @@ const q2: QuizQuestion = {
   choices: ["가을", "물", "사과", "산"],
   answerIndex: 0,
   hint: null,
+  choiceMeanings: null,
+};
+const qReverse: QuizQuestion = {
+  wordId: 1,
+  direction: "meaning_to_word",
+  prompt: "물",
+  promptReading: null,
+  choices: ["水", "秋", "りんご", "山"],
+  answerIndex: 0,
+  hint: null,
+  choiceMeanings: ["물", "가을", "사과", "산"],
 };
 
 describe("QuizPlayer", () => {
@@ -120,6 +132,19 @@ describe("QuizPlayer", () => {
     first.unmount();
     render(<QuizPlayer questions={[q2]} />);
     expect(screen.getByRole("button", { name: "힌트 보기" })).toBeDisabled();
+  });
+
+  it("역방향: 피드백 단계에서 각 보기 단어의 뜻이 함께 표시된다", () => {
+    render(<QuizPlayer questions={[qReverse]} />);
+
+    // 문제 단계에서는 다른 단어들의 뜻이 보이지 않는다
+    expect(screen.queryByText("가을")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /水/ }));
+
+    expect(screen.getByText("가을")).toBeInTheDocument();
+    expect(screen.getByText("사과")).toBeInTheDocument();
+    expect(screen.getByText("산")).toBeInTheDocument();
   });
 
   it("'정답 보기' 클릭 시 오답으로 기록되고 피드백 단계로 전환된다", () => {
