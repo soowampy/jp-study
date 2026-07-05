@@ -43,7 +43,10 @@ export default function ReviewPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, words }),
     });
-    if (res.ok) router.push("/");
+    if (res.ok) {
+      const { setId } = await res.json();
+      router.push(`/vocab-sets/${setId}`);
+    }
   }
 
   if (!job) {

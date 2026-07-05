@@ -8,6 +8,7 @@ export async function runWithRetry<C, T>(
   opts: {
     maxRetries?: number;
     onProgress?: (processed: number, total: number) => void | Promise<void>;
+    onChunkFailed?: (chunk: C) => void | Promise<void>;
   } = {},
 ): Promise<{ results: T[]; failedChunks: number }> {
   const maxRetries = opts.maxRetries ?? 3;
@@ -22,7 +23,10 @@ export async function runWithRetry<C, T>(
         results.push(...chunkResults);
         done = true;
       } catch {
-        if (attempt >= maxRetries) failedChunks++;
+        if (attempt >= maxRetries) {
+          failedChunks++;
+          await opts.onChunkFailed?.(chunks[i]);
+        }
       }
     }
     await opts.onProgress?.(i + 1, chunks.length);

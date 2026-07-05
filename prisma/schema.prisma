@@ -32,8 +32,9 @@ model Word {
   meaningKo  String // 한국어 뜻
   synonyms   String? // JSON 문자열: ["温まる", ...]
   examples   String? // JSON 문자열: [{jp, reading, ko}, ...]
-  posTag     String? // 품사 (P2)
-  enrichedAt DateTime? // AI 생성 완료 시각
+  posTag       String? // 품사 (P2)
+  enrichedAt   DateTime? // AI 생성 완료 시각
+  enrichFailed Boolean   @default(false) // Pass2 최종 실패 시 재시도 표시 (#5)
   set        VocabSet  @relation(fields: [setId], references: [id], onDelete: Cascade)
   srs        WordSrs?
 

@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db";
 
 /** 진행률을 서버가 소유하는 잡 레코드 (ADR-1). type: "parse" | "enrich". */
-export function createJob(type: string, total: number) {
-  return prisma.job.create({ data: { type, total } });
+export function createJob(type: string, total: number, setId?: number) {
+  return prisma.job.create({ data: { type, total, setId } });
 }
 
 export function getJob(id: number) {

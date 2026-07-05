@@ -37,4 +37,20 @@ describe("runWithRetry", () => {
     // 두 청크 모두 진행률 콜백이 호출되고, 마지막은 (2, 2)
     expect(onProgress).toHaveBeenCalledWith(2, 2);
   });
+
+  it("청크가 최종 실패하면 onChunkFailed 콜백이 그 청크로 호출된다", async () => {
+    const process = vi.fn(async (chunk: string) => {
+      if (chunk === "bad") throw new Error("영구 실패");
+      return [`${chunk}-ok`];
+    });
+    const onChunkFailed = vi.fn();
+
+    await runWithRetry(["bad", "good"], process, {
+      maxRetries: 2,
+      onChunkFailed,
+    });
+
+    expect(onChunkFailed).toHaveBeenCalledTimes(1);
+    expect(onChunkFailed).toHaveBeenCalledWith("bad");
+  });
 });
