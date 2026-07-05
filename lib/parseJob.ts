@@ -1,9 +1,9 @@
-import { chunkLines, parseWordsJson, type ParsedWord } from "@/lib/parse";
+import { chunkText, parseWordsJson, type ParsedWord } from "@/lib/parse";
 import { generateJson } from "@/lib/gemini";
 import { runWithRetry } from "@/lib/jobRunner";
 import { createJob, setProgress, completeJob } from "@/lib/jobs";
 
-const LINES_PER_CHUNK = 40;
+const MAX_CHARS_PER_CHUNK = 1500;
 
 function buildParsePrompt(chunk: string): string {
   return [
@@ -22,7 +22,7 @@ function buildParsePrompt(chunk: string): string {
  * 진행하면서 진행률을 DB에 기록한다. 클라이언트는 GET /api/jobs/:id 로 폴링한다. (ADR-1)
  */
 export async function startParseJob(text: string): Promise<number> {
-  const chunks = chunkLines(text, LINES_PER_CHUNK);
+  const chunks = chunkText(text, MAX_CHARS_PER_CHUNK);
   const job = await createJob("parse", chunks.length);
 
   void (async () => {

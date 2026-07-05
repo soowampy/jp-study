@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseWordsJson, chunkLines } from "@/lib/parse";
+import { parseWordsJson, chunkText } from "@/lib/parse";
 
 describe("parseWordsJson", () => {
   it("JSON 배열을 ParsedWord[] 로 파싱·매핑한다", () => {
@@ -43,14 +43,28 @@ describe("parseWordsJson", () => {
   });
 });
 
-describe("chunkLines", () => {
-  it("텍스트를 지정한 줄 수 단위 청크로 나눈다", () => {
-    const text = "a\nb\nc\nd\ne";
+describe("chunkText", () => {
+  it("maxChars 이하 텍스트는 청크 1개로 둔다", () => {
+    expect(chunkText("짧은 텍스트", 100)).toEqual(["짧은 텍스트"]);
+  });
 
-    const chunks = chunkLines(text, 2);
+  it("여러 줄을 maxChars 이하로 그리디 병합한다", () => {
+    // "aa\nbb"(5) 후 "cc"(2)
+    expect(chunkText("aa\nbb\ncc", 5)).toEqual(["aa\nbb", "cc"]);
+  });
 
-    expect(chunks).toHaveLength(3);
-    expect(chunks[0]).toBe("a\nb");
-    expect(chunks[2]).toBe("e");
+  it("줄바꿈 없는 긴 텍스트도 여러 청크로 나눈다 (핵심: 진행률/출력 안전)", () => {
+    const long = "a".repeat(250);
+
+    const chunks = chunkText(long, 100);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      expect(c.length).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it("빈 텍스트는 빈 배열", () => {
+    expect(chunkText("   ", 100)).toEqual([]);
   });
 });

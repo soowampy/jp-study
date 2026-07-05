@@ -26,12 +26,40 @@ export function parseWordsJson(raw: string): ParsedWord[] {
   }));
 }
 
-/** 텍스트를 linesPerChunk 줄 단위 청크로 분할한다. */
-export function chunkLines(text: string, linesPerChunk: number): string[] {
-  const lines = text.split(/\r?\n/);
-  const chunks: string[] = [];
-  for (let i = 0; i < lines.length; i += linesPerChunk) {
-    chunks.push(lines.slice(i, i + linesPerChunk).join("\n"));
+/**
+ * 텍스트를 maxChars 이하 청크로 분할한다.
+ * 줄바꿈이 있으면 줄 경계를 유지하며 그리디 병합하고, 줄바꿈 없이 긴 줄은
+ * 공백(없으면 강제) 경계로 쪼갠다. → unpdf가 페이지를 병합해 줄바꿈이 적어도
+ * 큰 PDF가 한 덩어리가 되지 않아, 진행률이 실제로 갱신되고 LLM 출력이 잘리지 않는다.
+ */
+export function chunkText(text: string, maxChars = 1500): string[] {
+  const normalized = text.trim();
+  if (!normalized) return [];
+
+  // 1) 줄 단위로 나누되, maxChars 초과 줄은 공백/강제 경계로 더 쪼갠다.
+  const segments: string[] = [];
+  for (const line of normalized.split(/\r?\n/)) {
+    let rest = line;
+    while (rest.length > maxChars) {
+      let cut = rest.lastIndexOf(" ", maxChars);
+      if (cut <= 0) cut = maxChars;
+      segments.push(rest.slice(0, cut).trim());
+      rest = rest.slice(cut).trimStart();
+    }
+    if (rest.length > 0) segments.push(rest);
   }
+
+  // 2) segment를 maxChars 이하로 그리디 병합해 청크를 만든다.
+  const chunks: string[] = [];
+  let current = "";
+  for (const seg of segments) {
+    if (current.length > 0 && current.length + 1 + seg.length > maxChars) {
+      chunks.push(current);
+      current = seg;
+    } else {
+      current = current.length > 0 ? `${current}\n${seg}` : seg;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
   return chunks;
 }
