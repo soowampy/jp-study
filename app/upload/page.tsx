@@ -1,12 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ExtractResult } from "@/lib/pdf";
 import { UploadResult } from "@/app/upload/_components/UploadResult";
 
 export default function UploadPage() {
+  const router = useRouter();
   const [result, setResult] = useState<ExtractResult | null>(null);
   const [loading, setLoading] = useState(false);
+
+  async function startParse(text: string) {
+    const res = await fetch("/api/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const { jobId } = await res.json();
+    router.push(`/review/${jobId}`);
+  }
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -38,6 +50,14 @@ export default function UploadPage() {
       {result && (
         <div className="mt-6">
           <UploadResult result={result} />
+          {result.ok && (
+            <button
+              onClick={() => startParse(result.text)}
+              className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              AI 파싱 시작
+            </button>
+          )}
         </div>
       )}
     </main>
