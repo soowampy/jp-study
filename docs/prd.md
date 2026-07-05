@@ -5,9 +5,9 @@
 
 ## 개요
 
-PDF 단어장(일본어–한국어)을 업로드하면 AI(Claude Haiku 4.5)가 단어를 구조화하고 유의어·예문을 붙여, 4지선다 퀴즈와 경량 SRS로 혼자 일본어 단어를 외우는 **1인 개인용** 학습 웹앱.
+PDF 단어장(일본어–한국어)을 업로드하면 AI(Gemini 2.5 Flash)가 단어를 구조화하고 유의어·예문을 붙여, 4지선다 퀴즈와 경량 SRS로 혼자 일본어 단어를 외우는 **1인 개인용** 학습 웹앱.
 
-- 기술 스택(확정): Next.js(App Router, TS) · Prisma + **로컬 SQLite** · Claude API(**Haiku 4.5**) · unpdf · Tailwind.
+- 기술 스택(확정): Next.js(App Router, TS) · Prisma + **로컬 SQLite** · Gemini API(**2.5 Flash**) · unpdf · Tailwind.
 - 인증: 무인증(`userId=1` 고정). 배포: 로드맵 W4 선택사항(그때 결정).
 - 범위: MVP(P0) — 업로드→파싱→검수→생성→단어장 뷰→양방향 4지선다→경량 SRS→진도 대시보드.
 
@@ -44,12 +44,14 @@ PDF 단어장(일본어–한국어)을 업로드하면 AI(Claude Haiku 4.5)가 
 **Alternatives** — Turso/Vercel Postgres 거부: 서버리스 휘발 대비 이점은 있으나 배포 확정 전이라 초기 셋업 복잡도만 늘린다.
 **Consequences** — (+) 운영부담 0, 마이그레이션 간편. (−) Vercel 배포 시 파일 휘발 → 배포 시 Turso 등으로 교체 필요(W4에서 결정).
 
-### ADR-3. AI 모델: Claude Haiku 4.5 단일
+### ADR-3. AI 모델: Gemini 2.5 Flash 단일 (개정 — 원래 Claude Haiku 4.5)
 
-**Context** — 파싱·생성 두 곳에서 Claude를 호출하며 개인용 비용 민감.
-**Decision** — 두 Pass 모두 `claude-haiku-4-5`. 키는 `ANTHROPIC_API_KEY` 환경변수.
-**Alternatives** — Sonnet/Opus 거부: 정확도는 높으나 비용↑. Pass별 혼용도 미채택(단순성 우선).
-**Consequences** — (+) 저비용·고속. (−) 한컴 PDF 파싱 오류 가능성↑ → **검수 화면 강화**(실패 행 강조, 수동 수정)로 상쇄. 파싱 정확도가 실제로 부족하면 Pass 1만 상위 모델로 올리는 것을 재검토.
+**Context** — 파싱·생성 두 곳에서 LLM을 호출하며 개인용 비용에 민감. 개발자가 Anthropic 대신 Google AI Studio 키(무료 티어)를 사용하기로 함.
+**Decision** — 두 Pass 모두 `gemini-2.5-flash` (`@google/genai` SDK). 키는 `GEMINI_API_KEY` 환경변수. 구조화 출력은 Gemini 네이티브 JSON 모드(`responseMimeType: "application/json"`)를 사용.
+**Alternatives**
+- *Claude Haiku 4.5(원안)* — 거부. 개발자가 Anthropic 키가 없고 Gemini 무료 티어를 선호.
+- *gemini-2.5-pro / 2.5-flash-lite* — 거부. pro는 반복 호출에 과함, lite는 한컴 PDF 파싱 정확도 우려.
+**Consequences** — (+) 무료 티어로 사실상 무비용, 고속. (+) 네이티브 JSON 모드로 "JSON만 출력" 신뢰성↑ → 펜스 제거 로직 부담 감소(단, 방어적 파싱은 유지). (−) 한컴 PDF 파싱 오류 가능성은 여전 → **검수 화면 강화**로 상쇄. 파싱 정확도가 부족하면 Pass 1만 pro로 올리는 것을 재검토.
 
 ### ADR-4. 생성 타이밍: 검수 확정 후
 
