@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { EnrichProgress } from "@/app/vocab-sets/[id]/_components/EnrichProgress";
 import { WordCardList } from "@/app/vocab-sets/[id]/_components/WordCardList";
@@ -36,7 +37,15 @@ export default async function VocabSetPage({
 
   return (
     <main className="mx-auto max-w-3xl p-8">
-      <h1 className="mb-2 text-2xl font-bold">{set.name}</h1>
+      <div className="mb-2 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">{set.name}</h1>
+        <Link
+          href={`/vocab-sets/${setId}/quiz`}
+          className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white"
+        >
+          퀴즈 시작
+        </Link>
+      </div>
       <p className="mb-6 text-sm text-gray-500">{set._count.words}개 단어</p>
       {job && <EnrichProgress jobId={job.id} />}
       <div className="mt-6">
