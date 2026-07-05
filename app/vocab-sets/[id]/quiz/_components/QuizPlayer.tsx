@@ -7,6 +7,22 @@ import {
   type QuizQuestion,
 } from "@/lib/quiz";
 
+/** 보기 버튼 스타일: 피드백 단계에서 정답 green, 선택한 오답 red. (design-system) */
+function choiceClass(
+  i: number,
+  answerIndex: number,
+  pickedIndex: number | null,
+  inFeedback: boolean,
+): string {
+  const base = "rounded-lg border px-4 py-3 text-left text-sm";
+  if (!inFeedback) {
+    return `${base} border-gray-300 bg-white hover:bg-gray-50`;
+  }
+  if (i === answerIndex) return `${base} border-green-500 bg-green-50`;
+  if (i === pickedIndex) return `${base} border-red-500 bg-red-50`;
+  return `${base} border-gray-200 bg-white opacity-40`;
+}
+
 export function QuizPlayer({
   questions,
   onAnswer,
@@ -16,6 +32,9 @@ export function QuizPlayer({
 }) {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
+  const [phase, setPhase] = useState<"question" | "feedback">("question");
+  const [pickedIndex, setPickedIndex] = useState<number | null>(null);
+  const [hintShown, setHintShown] = useState(false);
   const startedAtRef = useRef(new Date());
 
   if (index >= questions.length) {
@@ -25,8 +44,8 @@ export function QuizPlayer({
     );
 
     return (
-      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 p-6">
-        <h2 className="text-lg font-bold">세션 결과</h2>
+      <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-sm font-semibold">세션 결과</h2>
         <p className="text-3xl font-bold">정답률 {summary.accuracy}%</p>
         <p className="text-sm text-gray-600">
           {summary.correct} / {summary.total} 정답 · 소요시간{" "}
@@ -54,11 +73,24 @@ export function QuizPlayer({
   }
 
   const q = questions[index];
-  const answer = (choiceIndex: number) => {
+  const inFeedback = phase === "feedback";
+  const pickedCorrect = pickedIndex !== null && pickedIndex === q.answerIndex;
+
+  // choiceIndex가 null이면 "정답 보기"(오답 처리). 답은 문제당 1회만 제출된다.
+  const submit = (choiceIndex: number | null) => {
+    if (inFeedback) return;
     const isCorrect = choiceIndex === q.answerIndex;
     onAnswer?.(q.wordId, isCorrect);
     setAnswers((prev) => [...prev, { wordId: q.wordId, isCorrect }]);
+    setPickedIndex(choiceIndex);
+    setPhase("feedback");
+  };
+
+  const next = () => {
     setIndex(index + 1);
+    setPhase("question");
+    setPickedIndex(null);
+    setHintShown(false);
   };
 
   return (
@@ -66,23 +98,71 @@ export function QuizPlayer({
       <p className="text-sm text-gray-500">
         {index + 1} / {questions.length}
       </p>
-      <div className="flex items-baseline gap-3 rounded-lg border border-gray-200 p-6">
+
+      <div className="flex items-baseline gap-3 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <span className="text-3xl font-bold">{q.prompt}</span>
         {q.promptReading && (
           <span className="text-gray-600">{q.promptReading}</span>
         )}
       </div>
+
       <div className="flex flex-col gap-2">
         {q.choices.map((choice, i) => (
           <button
             key={i}
-            onClick={() => answer(i)}
-            className="rounded-md border border-gray-300 px-4 py-3 text-left hover:bg-gray-50"
+            onClick={() => submit(i)}
+            disabled={inFeedback}
+            className={choiceClass(i, q.answerIndex, pickedIndex, inFeedback)}
           >
             {choice}
           </button>
         ))}
       </div>
+
+      {hintShown && q.hint && (
+        <p className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+          {q.hint}
+        </p>
+      )}
+
+      {inFeedback ? (
+        <div className="flex items-center gap-4">
+          {pickedCorrect ? (
+            <p className="text-sm font-semibold text-green-600">정답!</p>
+          ) : (
+            <>
+              {pickedIndex !== null && (
+                <p className="text-sm font-semibold text-red-600">오답</p>
+              )}
+              <p className="text-sm text-gray-600">
+                정답: {q.choices[q.answerIndex]}
+              </p>
+            </>
+          )}
+          <button
+            onClick={next}
+            className="ml-auto rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            다음
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setHintShown(true)}
+            disabled={!q.hint || hintShown}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            힌트 보기
+          </button>
+          <button
+            onClick={() => submit(null)}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50"
+          >
+            정답 보기
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ export type QuizWord = {
   kanji: string | null;
   reading: string;
   meaningKo: string;
+  synonyms?: string[];
+  examples?: { jp: string }[];
 };
 
 export type QuizQuestion = {
@@ -14,6 +16,7 @@ export type QuizQuestion = {
   promptReading: string | null;
   choices: string[];
   answerIndex: number;
+  hint: string | null; // 예문 jp 우선, 없으면 유의어 (#10)
 };
 
 export type QuizAnswer = { wordId: number; isCorrect: boolean };
@@ -52,17 +55,18 @@ function choiceLabel(word: QuizWord, direction: QuizDirection): string {
 export function buildQuizSession(
   words: QuizWord[],
   direction: QuizDirection,
-  opts: { pool?: QuizWord[] } = {},
+  opts: { pool?: QuizWord[]; size?: number } = {},
 ): QuizQuestion[] {
   const pool = opts.pool ?? words;
+  const size = opts.size ?? SESSION_SIZE;
   if (pool.length < MIN_QUIZ_WORDS) {
     throw new Error("단어가 4개 이상이어야 합니다");
   }
 
   // pool이 주어지면 words는 이미 우선순위로 선별된 세션 — 순서를 유지한다. (#8)
   const selected = opts.pool
-    ? words.slice(0, SESSION_SIZE)
-    : shuffle(words).slice(0, SESSION_SIZE);
+    ? words.slice(0, size)
+    : shuffle(words).slice(0, size);
 
   return selected.map((word) => {
     const wrong = shuffle(pool.filter((w) => w.id !== word.id))
@@ -82,6 +86,7 @@ export function buildQuizSession(
         direction === "word_to_meaning" && word.kanji ? word.reading : null,
       choices,
       answerIndex: choices.indexOf(answer),
+      hint: word.examples?.[0]?.jp ?? word.synonyms?.[0] ?? null,
     };
   });
 }

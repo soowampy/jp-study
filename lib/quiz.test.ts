@@ -79,6 +79,41 @@ describe("buildQuizSession", () => {
     expect(new Set(questions.map((q) => q.wordId)).size).toBe(20);
   });
 
+  it("size 옵션: 단어 25개에 size 10이면 10문제만 출제된다", () => {
+    const many: QuizWord[] = Array.from({ length: 25 }, (_, i) => ({
+      id: i + 1,
+      kanji: `漢${i}`,
+      reading: `よみ${i}`,
+      meaningKo: `뜻${i}`,
+    }));
+
+    const questions = buildQuizSession(many, "word_to_meaning", { size: 10 });
+
+    expect(questions).toHaveLength(10);
+  });
+
+  it("힌트: 예문이 있으면 예문 jp, 없으면 유의어, 둘 다 없으면 null", () => {
+    const enriched: QuizWord[] = [
+      {
+        id: 1,
+        kanji: "水",
+        reading: "みず",
+        meaningKo: "물",
+        synonyms: ["お冷"],
+        examples: [{ jp: "水を飲む。" }],
+      },
+      { id: 2, kanji: "秋", reading: "あき", meaningKo: "가을", synonyms: ["秋季"] },
+      { id: 3, kanji: null, reading: "りんご", meaningKo: "사과" },
+      { id: 4, kanji: "山", reading: "やま", meaningKo: "산" },
+    ];
+
+    const questions = buildQuizSession(enriched, "word_to_meaning");
+
+    expect(questions.find((q) => q.wordId === 1)!.hint).toBe("水を飲む。");
+    expect(questions.find((q) => q.wordId === 2)!.hint).toBe("秋季");
+    expect(questions.find((q) => q.wordId === 3)!.hint).toBeNull();
+  });
+
   it("단어가 20개 미만이면 있는 만큼만 출제된다", () => {
     const five: QuizWord[] = Array.from({ length: 5 }, (_, i) => ({
       id: i + 1,

@@ -28,4 +28,12 @@ describe("VocabSetList", () => {
     // 빈 상태 문구는 나오지 않는다
     expect(screen.queryByText("단어장이 없습니다")).not.toBeInTheDocument();
   });
+
+  it("목록 항목이 단어장 상세로 링크된다", () => {
+    render(<VocabSetList sets={[{ id: 1, name: "N3 총정리(와카메)" }]} />);
+
+    expect(
+      screen.getByRole("link", { name: /N3 총정리/ }),
+    ).toHaveAttribute("href", "/vocab-sets/1");
+  });
 });

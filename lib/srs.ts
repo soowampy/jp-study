@@ -55,10 +55,11 @@ export function applyAnswer(
 export function selectSessionWords<T extends WordWithSrsRef>(
   words: T[],
   today: Date,
+  size: number = SESSION_SIZE,
 ): T[] {
   const review = words.filter(
     (w) => w.srs !== null && w.srs.nextReviewDate.getTime() <= today.getTime(),
   );
   const unlearned = words.filter((w) => w.srs === null);
-  return [...review, ...unlearned].slice(0, SESSION_SIZE);
+  return [...review, ...unlearned].slice(0, size);
 }

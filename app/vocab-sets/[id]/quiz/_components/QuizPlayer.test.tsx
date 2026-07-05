@@ -10,6 +10,7 @@ const q1: QuizQuestion = {
   promptReading: "みず",
   choices: ["물", "가을", "사과", "산"],
   answerIndex: 0,
+  hint: "水を飲む。",
 };
 const q2: QuizQuestion = {
   wordId: 2,
@@ -18,49 +19,85 @@ const q2: QuizQuestion = {
   promptReading: "あき",
   choices: ["가을", "물", "사과", "산"],
   answerIndex: 0,
+  hint: null,
 };
 
 describe("QuizPlayer", () => {
-  it("문제(漢字+후리가나)와 보기 버튼 4개가 보인다", () => {
+  it("문제·보기 4개와 '힌트 보기'·'정답 보기' 버튼이 보인다", () => {
     render(<QuizPlayer questions={[q1, q2]} />);
 
     expect(screen.getByText("水")).toBeInTheDocument();
     expect(screen.getByText("みず")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "물" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "가을" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "사과" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "산" })).toBeInTheDocument();
+    for (const choice of ["물", "가을", "사과", "산"]) {
+      expect(screen.getByRole("button", { name: choice })).toBeInTheDocument();
+    }
+    expect(
+      screen.getByRole("button", { name: "힌트 보기" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "정답 보기" }),
+    ).toBeInTheDocument();
   });
 
-  it("정답을 클릭하면 onAnswer(wordId, true)가 호출되고 다음 문제로 넘어간다", () => {
+  it("정답 선택 시 즉시 넘어가지 않고 '정답!'과 '다음' 버튼이 보이며 onAnswer가 호출된다", () => {
     const onAnswer = vi.fn();
     render(<QuizPlayer questions={[q1, q2]} onAnswer={onAnswer} />);
 
     fireEvent.click(screen.getByRole("button", { name: "물" }));
 
     expect(onAnswer).toHaveBeenCalledWith(1, true);
-    expect(screen.getByText("秋")).toBeInTheDocument();
+    expect(screen.getByText("정답!")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다음" })).toBeInTheDocument();
+    // 다음 문제로 즉시 넘어가지 않는다
+    expect(screen.queryByText("秋")).not.toBeInTheDocument();
   });
 
-  it("오답을 클릭하면 onAnswer(wordId, false)가 호출된다", () => {
+  it("오답 선택 시 '오답'과 정답('정답: 물')이 노출된다", () => {
     const onAnswer = vi.fn();
     render(<QuizPlayer questions={[q1, q2]} onAnswer={onAnswer} />);
 
     fireEvent.click(screen.getByRole("button", { name: "산" }));
 
     expect(onAnswer).toHaveBeenCalledWith(1, false);
+    expect(screen.getByText("오답")).toBeInTheDocument();
+    expect(screen.getByText("정답: 물")).toBeInTheDocument();
   });
 
-  it("마지막 문제 후 정답률·소요시간·틀린 단어 목록이 요약된다", () => {
+  it("'다음' 클릭 시 다음 문제로 진행하고 마지막 문제 후 결과가 요약된다", () => {
     render(<QuizPlayer questions={[q1, q2]} />);
 
     fireEvent.click(screen.getByRole("button", { name: "물" })); // q1 정답
-    fireEvent.click(screen.getByRole("button", { name: "사과" })); // q2 오답
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(screen.getByText("秋")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "가을" })); // q2 정답
+    fireEvent.click(screen.getByRole("button", { name: "다음" }));
 
     expect(screen.getByText(/정답률/)).toBeInTheDocument();
-    expect(screen.getByText(/50%/)).toBeInTheDocument();
+    expect(screen.getByText(/100%/)).toBeInTheDocument();
     expect(screen.getByText(/소요시간/)).toBeInTheDocument();
-    // 틀린 단어(秋)가 요약에 보인다
-    expect(screen.getByText(/秋/)).toBeInTheDocument();
+  });
+
+  it("'힌트 보기' 클릭 시 힌트가 표시되고, 힌트가 없으면 버튼이 비활성이다", () => {
+    const first = render(<QuizPlayer questions={[q1, q2]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "힌트 보기" }));
+    expect(screen.getByText("水を飲む。")).toBeInTheDocument();
+
+    first.unmount();
+    render(<QuizPlayer questions={[q2]} />);
+    expect(screen.getByRole("button", { name: "힌트 보기" })).toBeDisabled();
+  });
+
+  it("'정답 보기' 클릭 시 오답으로 기록되고 피드백 단계로 전환된다", () => {
+    const onAnswer = vi.fn();
+    render(<QuizPlayer questions={[q1, q2]} onAnswer={onAnswer} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "정답 보기" }));
+
+    expect(onAnswer).toHaveBeenCalledWith(1, false);
+    expect(screen.getByText("정답: 물")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다음" })).toBeInTheDocument();
   });
 });

@@ -22,11 +22,13 @@ export function VocabSetList({
   return (
     <ul className="flex flex-col gap-2">
       {sets.map((set) => (
-        <li
-          key={set.id}
-          className="rounded-md border border-gray-200 px-4 py-3"
-        >
-          {set.name}
+        <li key={set.id}>
+          <Link
+            href={`/vocab-sets/${set.id}`}
+            className="block rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm hover:bg-gray-50"
+          >
+            {set.name}
+          </Link>
         </li>
       ))}
     </ul>

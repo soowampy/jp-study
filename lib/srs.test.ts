@@ -117,6 +117,12 @@ describe("selectSessionWords", () => {
     expect(selectSessionWords(words, today)).toHaveLength(20);
   });
 
+  it("size 옵션: 출제 대상 25개에 size 10이면 10개만 선택된다", () => {
+    const words = Array.from({ length: 25 }, (_, i) => word(i + 1, null));
+
+    expect(selectSessionWords(words, today, 10)).toHaveLength(10);
+  });
+
   it("출제 대상이 5개면 5개만 구성된다", () => {
     const words = Array.from({ length: 5 }, (_, i) => word(i + 1, null));
 

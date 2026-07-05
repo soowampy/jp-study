@@ -3,26 +3,38 @@ import { prisma } from "@/lib/db";
 import {
   buildQuizSession,
   MIN_QUIZ_WORDS,
+  SESSION_SIZE,
   type QuizDirection,
 } from "@/lib/quiz";
 import { selectSessionWords } from "@/lib/srs";
 import { QuizSession } from "@/app/vocab-sets/[id]/quiz/_components/QuizSession";
+import { QuizStartForm } from "@/app/vocab-sets/[id]/quiz/_components/QuizStartForm";
+
+function parseJsonArray<T>(raw: string | null): T[] {
+  if (!raw) return [];
+  try {
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
 
 export default async function QuizPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ direction?: string }>;
+  searchParams: Promise<{ direction?: string; count?: string }>;
 }) {
   const { id } = await params;
-  const { direction } = await searchParams;
+  const { direction, count } = await searchParams;
   const setId = Number(id);
 
   const set = await prisma.vocabSet.findUnique({ where: { id: setId } });
   if (!set) {
     return (
-      <main className="mx-auto max-w-3xl p-8">단어장을 찾을 수 없습니다.</main>
+      <main className="mx-auto max-w-3xl p-6">단어장을 찾을 수 없습니다.</main>
     );
   }
 
@@ -34,7 +46,7 @@ export default async function QuizPage({
 
   if (words.length < MIN_QUIZ_WORDS) {
     return (
-      <main className="mx-auto max-w-3xl p-8">
+      <main className="mx-auto max-w-3xl p-6">
         <p className="mb-4">단어가 4개 이상이어야 합니다.</p>
         <Link href={`/vocab-sets/${setId}`} className="text-blue-600 underline">
           단어장으로 돌아가기
@@ -45,30 +57,30 @@ export default async function QuizPage({
 
   if (direction !== "word_to_meaning" && direction !== "meaning_to_word") {
     return (
-      <main className="mx-auto max-w-3xl p-8">
+      <main className="mx-auto max-w-3xl p-6">
         <h1 className="mb-6 text-2xl font-bold">{set.name} — 퀴즈</h1>
-        <div className="flex flex-col gap-3">
-          <Link
-            href={`/vocab-sets/${setId}/quiz?direction=word_to_meaning`}
-            className="rounded-md border border-gray-300 px-4 py-3 hover:bg-gray-50"
-          >
-            정방향 — 단어(漢字+후리가나) → 뜻
-          </Link>
-          <Link
-            href={`/vocab-sets/${setId}/quiz?direction=meaning_to_word`}
-            className="rounded-md border border-gray-300 px-4 py-3 hover:bg-gray-50"
-          >
-            역방향 — 뜻 → 단어
-          </Link>
-        </div>
+        <QuizStartForm setId={setId} />
       </main>
     );
   }
 
-  const sessionWords = selectSessionWords(words, new Date());
+  const size =
+    count === "all" ? Infinity : count === "10" ? 10 : SESSION_SIZE;
+
+  const quizWords = words.map((w) => ({
+    id: w.id,
+    kanji: w.kanji,
+    reading: w.reading,
+    meaningKo: w.meaningKo,
+    synonyms: parseJsonArray<string>(w.synonyms),
+    examples: parseJsonArray<{ jp: string }>(w.examples),
+    srs: w.srs,
+  }));
+
+  const sessionWords = selectSessionWords(quizWords, new Date(), size);
   if (sessionWords.length === 0) {
     return (
-      <main className="mx-auto max-w-3xl p-8">
+      <main className="mx-auto max-w-3xl p-6">
         <p className="mb-4">오늘 출제할 단어가 없습니다. (복습 대상·미학습 없음)</p>
         <Link href={`/vocab-sets/${setId}`} className="text-blue-600 underline">
           단어장으로 돌아가기
@@ -78,11 +90,12 @@ export default async function QuizPage({
   }
 
   const questions = buildQuizSession(sessionWords, direction as QuizDirection, {
-    pool: words,
+    pool: quizWords,
+    size,
   });
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <main className="mx-auto max-w-3xl p-6">
       <h1 className="mb-6 text-2xl font-bold">{set.name} — 퀴즈</h1>
       <QuizSession questions={questions} />
     </main>

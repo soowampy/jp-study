@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { GlobalHeader } from "@/app/_components/GlobalHeader";
 
 export const metadata: Metadata = {
   title: "일본어 단어 학습",
@@ -11,7 +12,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body className="min-h-screen bg-gray-50 text-gray-900">
+        <GlobalHeader />
+        {children}
+      </body>
     </html>
   );
 }
