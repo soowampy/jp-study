@@ -9,6 +9,7 @@ export type WordCard = {
   synonyms: string[];
   examples: Example[];
   enrichFailed: boolean;
+  bookmarked: boolean;
   level: number;
   needsReview: boolean;
   unlearned: boolean;
@@ -22,13 +23,14 @@ export type WordWithSrs = {
   synonyms: string | null;
   examples: string | null;
   enrichFailed: boolean;
+  bookmarked: boolean;
   srs: { level: number; nextReviewDate: Date } | null;
 };
 
 export type WordFilter = {
   query?: string;
   level?: number | null;
-  status?: "all" | "review" | "unlearned";
+  status?: "all" | "review" | "unlearned" | "bookmarked";
 };
 
 function parseJsonArray<T>(raw: string | null): T[] {
@@ -51,6 +53,7 @@ export function toWordCard(word: WordWithSrs, today: Date): WordCard {
     synonyms: parseJsonArray<string>(word.synonyms),
     examples: parseJsonArray<Example>(word.examples),
     enrichFailed: word.enrichFailed,
+    bookmarked: word.bookmarked,
     level: word.srs?.level ?? 0,
     needsReview:
       word.srs !== null && word.srs.nextReviewDate.getTime() <= today.getTime(),
@@ -77,6 +80,7 @@ export function filterWordCards(
     if (filter.level != null && c.level !== filter.level) return false;
     if (filter.status === "review" && !c.needsReview) return false;
     if (filter.status === "unlearned" && !c.unlearned) return false;
+    if (filter.status === "bookmarked" && !c.bookmarked) return false;
     return true;
   });
 }

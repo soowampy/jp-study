@@ -1,4 +1,7 @@
-export type QuizDirection = "word_to_meaning" | "meaning_to_word";
+export type QuizDirection =
+  | "kanji_to_meaning"
+  | "reading_to_meaning"
+  | "meaning_to_word";
 
 export type QuizWord = {
   id: number;
@@ -42,16 +45,18 @@ function shuffle<T>(arr: T[]): T[] {
   return out;
 }
 
-/** 보기/정답에 쓰는 표시값. 정방향은 뜻, 역방향은 단어 표기(漢字 없으면 reading). */
+/** 보기/정답에 쓰는 표시값. 한자→뜻·후리가나→뜻은 뜻, 뜻→단어는 漢字+후리가나 결합(kana면 후리가나만). */
 function choiceLabel(word: QuizWord, direction: QuizDirection): string {
-  return direction === "word_to_meaning"
-    ? word.meaningKo
-    : (word.kanji ?? word.reading);
+  if (direction === "meaning_to_word") {
+    return word.kanji ? `${word.kanji} (${word.reading})` : word.reading;
+  }
+  return word.meaningKo;
 }
 
 /**
  * 4지선다 세션을 만든다. 최대 20문제, 문제 단어 중복 없음.
  * 오답 3개는 같은 단어장의 다른 단어에서 뽑는다. (#7)
+ * 유형 3종(한자→뜻/후리가나→뜻/뜻→단어) — kanji_to_meaning은 kanji=null 단어를 문제 대상에서 제외한다. (#11)
  */
 export function buildQuizSession(
   words: QuizWord[],
@@ -64,10 +69,16 @@ export function buildQuizSession(
     throw new Error("단어가 4개 이상이어야 합니다");
   }
 
+  const eligible =
+    direction === "kanji_to_meaning" ? words.filter((w) => w.kanji) : words;
+  if (eligible.length === 0) {
+    throw new Error("한자 단어가 없어 이 유형을 낼 수 없습니다");
+  }
+
   // pool이 주어지면 words는 이미 우선순위로 선별된 세션 — 순서를 유지한다. (#8)
   const selected = opts.pool
-    ? words.slice(0, size)
-    : shuffle(words).slice(0, size);
+    ? eligible.slice(0, size)
+    : shuffle(eligible).slice(0, size);
 
   return selected.map((word) => {
     const wrong = shuffle(pool.filter((w) => w.id !== word.id)).slice(0, 3);
@@ -77,11 +88,12 @@ export function buildQuizSession(
       wordId: word.id,
       direction,
       prompt:
-        direction === "word_to_meaning"
-          ? (word.kanji ?? word.reading)
-          : word.meaningKo,
-      promptReading:
-        direction === "word_to_meaning" && word.kanji ? word.reading : null,
+        direction === "kanji_to_meaning"
+          ? (word.kanji as string)
+          : direction === "reading_to_meaning"
+            ? word.reading
+            : word.meaningKo,
+      promptReading: direction === "kanji_to_meaning" ? word.reading : null,
       choices: choiceWords.map((w) => choiceLabel(w, direction)),
       answerIndex: choiceWords.findIndex((w) => w.id === word.id),
       hint: word.examples?.[0]?.jp ?? word.synonyms?.[0] ?? null,

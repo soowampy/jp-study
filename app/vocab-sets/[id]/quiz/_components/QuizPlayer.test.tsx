@@ -5,7 +5,7 @@ import type { QuizQuestion } from "@/lib/quiz";
 
 const q1: QuizQuestion = {
   wordId: 1,
-  direction: "word_to_meaning",
+  direction: "kanji_to_meaning",
   prompt: "水",
   promptReading: "みず",
   choices: ["물", "가을", "사과", "산"],
@@ -15,7 +15,7 @@ const q1: QuizQuestion = {
 };
 const q2: QuizQuestion = {
   wordId: 2,
-  direction: "word_to_meaning",
+  direction: "kanji_to_meaning",
   prompt: "秋",
   promptReading: "あき",
   choices: ["가을", "물", "사과", "산"],

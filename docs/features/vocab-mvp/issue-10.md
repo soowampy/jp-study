@@ -1,6 +1,6 @@
 # issue-10 — UI/UX 개선 (글로벌 네비·퀴즈 인터랙션·로딩·모던 디자인)
 
-> GitHub: soowampy/jp-study#10
+> GitHub: soowampy/jp-study#11 (문서 번호는 #10, GitHub 이슈 번호 gap으로 실제 번호는 #11로 생성됨)
 > 2026-07-06 사용성 피드백 반영. spec-fixed R5 개정·R10 기준.
 > tdd-green 추적용 시나리오 문서. 각 체크박스 = 하나의 테스트 케이스.
 

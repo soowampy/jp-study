@@ -8,7 +8,9 @@ export async function POST(req: NextRequest) {
   if (
     typeof wordId !== "number" ||
     typeof isCorrect !== "boolean" ||
-    (direction !== "word_to_meaning" && direction !== "meaning_to_word")
+    (direction !== "kanji_to_meaning" &&
+      direction !== "reading_to_meaning" &&
+      direction !== "meaning_to_word")
   ) {
     return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
   }

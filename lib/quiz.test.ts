@@ -12,76 +12,111 @@ const words: QuizWord[] = [
   { id: 4, kanji: "山", reading: "やま", meaningKo: "산" },
 ];
 
-describe("buildQuizSession", () => {
-  it("정방향: 문제=漢字+후리가나, choices[answerIndex]가 정답 뜻이다", () => {
-    const questions = buildQuizSession(words, "word_to_meaning");
+describe("buildQuizSession — 한자→뜻 (kanji_to_meaning)", () => {
+  it("문제=漢字, promptReading=reading, choices[answerIndex]가 정답 뜻이다", () => {
+    const questions = buildQuizSession(words, "kanji_to_meaning");
     const q = questions.find((q) => q.wordId === 1)!;
 
     expect(q.prompt).toBe("水");
     expect(q.promptReading).toBe("みず");
-    expect(q.direction).toBe("word_to_meaning");
+    expect(q.direction).toBe("kanji_to_meaning");
     expect(q.choices).toHaveLength(4);
     expect(q.choices[q.answerIndex]).toBe("물");
   });
 
-  it("정방향: 오답 3개는 같은 단어장의 다른 단어 뜻이고 중복이 없다", () => {
-    const questions = buildQuizSession(words, "word_to_meaning");
+  it("kanji=null 단어는 문제로 나오지 않는다", () => {
+    const questions = buildQuizSession(words, "kanji_to_meaning");
+
+    expect(questions.some((q) => q.wordId === 3)).toBe(false);
+  });
+
+  it("kanji=null 단어의 뜻은 오답 보기로는 등장할 수 있다", () => {
+    const questions = buildQuizSession(words, "kanji_to_meaning");
+
+    const allChoices = questions.flatMap((q) => q.choices);
+    expect(allChoices).toContain("사과");
+  });
+
+  it("한자 단어가 0개면 '한자 단어가 없어 이 유형을 낼 수 없습니다' 에러를 던진다", () => {
+    const kanaOnly: QuizWord[] = [
+      { id: 1, kanji: null, reading: "りんご", meaningKo: "사과" },
+      { id: 2, kanji: null, reading: "みかん", meaningKo: "귤" },
+      { id: 3, kanji: null, reading: "ぶどう", meaningKo: "포도" },
+      { id: 4, kanji: null, reading: "いちご", meaningKo: "딸기" },
+    ];
+
+    expect(() => buildQuizSession(kanaOnly, "kanji_to_meaning")).toThrow(
+      "한자 단어가 없어 이 유형을 낼 수 없습니다",
+    );
+  });
+});
+
+describe("buildQuizSession — 후리가나→뜻 (reading_to_meaning)", () => {
+  it("문제=후리가나, promptReading=null, choices[answerIndex]가 정답 뜻이다", () => {
+    const questions = buildQuizSession(words, "reading_to_meaning");
     const q = questions.find((q) => q.wordId === 1)!;
 
-    const allMeanings = words.map((w) => w.meaningKo);
-    for (const choice of q.choices) {
-      expect(allMeanings).toContain(choice);
-    }
-    expect(new Set(q.choices).size).toBe(4);
-  });
-
-  it("kana 단어(kanji null): 문제=reading, promptReading은 null이다", () => {
-    const questions = buildQuizSession(words, "word_to_meaning");
-    const q = questions.find((q) => q.wordId === 3)!;
-
-    expect(q.prompt).toBe("りんご");
+    expect(q.prompt).toBe("みず");
     expect(q.promptReading).toBeNull();
+    expect(q.direction).toBe("reading_to_meaning");
+    expect(q.choices[q.answerIndex]).toBe("물");
   });
 
-  it("역방향: 문제=뜻, 보기=단어 표기, choices[answerIndex]가 정답 단어다", () => {
+  it("kanji 유무와 무관하게 전 단어가 문제 대상이다", () => {
+    const questions = buildQuizSession(words, "reading_to_meaning");
+
+    expect(new Set(questions.map((q) => q.wordId))).toEqual(
+      new Set([1, 2, 3, 4]),
+    );
+  });
+
+  it("choiceMeanings는 null이다(보기가 이미 뜻)", () => {
+    const questions = buildQuizSession(words, "reading_to_meaning");
+
+    expect(questions[0].choiceMeanings).toBeNull();
+  });
+});
+
+describe("buildQuizSession — 뜻→단어 (meaning_to_word)", () => {
+  it("문제=뜻, 보기=漢字+후리가나 결합 표기, choices[answerIndex]가 정답 단어다", () => {
     const questions = buildQuizSession(words, "meaning_to_word");
     const q = questions.find((q) => q.wordId === 1)!;
 
     expect(q.prompt).toBe("물");
     expect(q.promptReading).toBeNull();
     expect(q.direction).toBe("meaning_to_word");
-    expect(q.choices).toHaveLength(4);
-    expect(q.choices[q.answerIndex]).toBe("水");
-
-    const labels = words.map((w) => w.kanji ?? w.reading);
-    for (const choice of q.choices) {
-      expect(labels).toContain(choice);
-    }
+    expect(q.choices[q.answerIndex]).toBe("水 (みず)");
   });
 
-  it("역방향: choiceMeanings가 보기 순서대로 각 단어의 뜻을 담는다", () => {
+  it("kana 단어(kanji null)는 후리가나만 표기한다", () => {
+    const questions = buildQuizSession(words, "meaning_to_word");
+    const q = questions.find((q) => q.wordId === 3)!;
+
+    expect(q.choices[q.answerIndex]).toBe("りんご");
+  });
+
+  it("choiceMeanings가 보기 순서대로 각 단어의 뜻을 담는다", () => {
     const questions = buildQuizSession(words, "meaning_to_word");
     const q = questions.find((q) => q.wordId === 1)!;
 
     const meaningByLabel = new Map(
-      words.map((w) => [w.kanji ?? w.reading, w.meaningKo]),
+      words.map((w) => [
+        w.kanji ? `${w.kanji} (${w.reading})` : w.reading,
+        w.meaningKo,
+      ]),
     );
     expect(q.choiceMeanings).toHaveLength(4);
     q.choices.forEach((choice, i) => {
       expect(q.choiceMeanings![i]).toBe(meaningByLabel.get(choice));
     });
   });
+});
 
-  it("정방향: choiceMeanings는 null이다(보기가 이미 뜻)", () => {
-    const questions = buildQuizSession(words, "word_to_meaning");
-
-    expect(questions[0].choiceMeanings).toBeNull();
-  });
-
+describe("buildQuizSession — 공통 동작 (session size · pool · hint)", () => {
   it("단어가 4개 미만이면 '단어가 4개 이상이어야 합니다' 에러를 던진다", () => {
-    expect(() => buildQuizSession(words.slice(0, 3), "word_to_meaning")).toThrow(
-      "단어가 4개 이상이어야 합니다",
-    );
+    expect(() =>
+      buildQuizSession(words.slice(0, 3), "reading_to_meaning"),
+    ).toThrow("단어가 4개 이상이어야 합니다");
   });
 
   it("단어 25개면 20문제만 출제되고 문제 단어가 중복되지 않는다", () => {
@@ -92,7 +127,7 @@ describe("buildQuizSession", () => {
       meaningKo: `뜻${i}`,
     }));
 
-    const questions = buildQuizSession(many, "word_to_meaning");
+    const questions = buildQuizSession(many, "reading_to_meaning");
 
     expect(questions).toHaveLength(20);
     expect(new Set(questions.map((q) => q.wordId)).size).toBe(20);
@@ -106,7 +141,9 @@ describe("buildQuizSession", () => {
       meaningKo: `뜻${i}`,
     }));
 
-    const questions = buildQuizSession(many, "word_to_meaning", { size: 10 });
+    const questions = buildQuizSession(many, "reading_to_meaning", {
+      size: 10,
+    });
 
     expect(questions).toHaveLength(10);
   });
@@ -126,7 +163,7 @@ describe("buildQuizSession", () => {
       { id: 4, kanji: "山", reading: "やま", meaningKo: "산" },
     ];
 
-    const questions = buildQuizSession(enriched, "word_to_meaning");
+    const questions = buildQuizSession(enriched, "reading_to_meaning");
 
     expect(questions.find((q) => q.wordId === 1)!.hint).toBe("水を飲む。");
     expect(questions.find((q) => q.wordId === 2)!.hint).toBe("秋季");
@@ -141,17 +178,15 @@ describe("buildQuizSession", () => {
       meaningKo: `뜻${i}`,
     }));
 
-    const questions = buildQuizSession(five, "word_to_meaning");
+    const questions = buildQuizSession(five, "reading_to_meaning");
 
     expect(questions).toHaveLength(5);
   });
-});
 
-describe("buildQuizSession — pool 옵션 (#8)", () => {
-  it("세션 단어 순서를 유지하고 오답 보기는 pool에서 뽑는다", () => {
+  it("pool 옵션: 세션 단어 순서를 유지하고 오답 보기는 pool에서 뽑는다", () => {
     const session = [words[1], words[0]]; // 우선순위대로 정렬된 2개
 
-    const questions = buildQuizSession(session, "word_to_meaning", {
+    const questions = buildQuizSession(session, "reading_to_meaning", {
       pool: words,
     });
 

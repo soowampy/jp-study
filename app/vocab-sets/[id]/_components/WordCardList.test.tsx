@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { WordCardList } from "@/app/vocab-sets/[id]/_components/WordCardList";
 import type { WordCard } from "@/lib/wordCards";
@@ -12,6 +12,7 @@ function card(overrides: Partial<WordCard>): WordCard {
     synonyms: [],
     examples: [],
     enrichFailed: false,
+    bookmarked: false,
     level: 0,
     needsReview: false,
     unlearned: true,
@@ -113,5 +114,42 @@ describe("WordCardList", () => {
     });
 
     expect(screen.getByText("일치하는 단어가 없습니다")).toBeInTheDocument();
+  });
+
+  it("저장 토글 버튼을 누르면 onToggleBookmark(id)가 호출된다 (#11)", () => {
+    const onToggleBookmark = vi.fn();
+    render(
+      <WordCardList
+        cards={[mizu, aki]}
+        onToggleBookmark={onToggleBookmark}
+      />,
+    );
+
+    const toggles = screen.getAllByRole("button", { name: "저장" });
+    fireEvent.click(toggles[0]);
+
+    expect(onToggleBookmark).toHaveBeenCalledWith(mizu.id);
+  });
+
+  it("저장된 카드는 저장 버튼이 aria-pressed=true다 (#11)", () => {
+    render(
+      <WordCardList cards={[{ ...mizu, bookmarked: true }, aki]} />,
+    );
+
+    const toggles = screen.getAllByRole("button", { name: "저장" });
+
+    expect(toggles[0]).toHaveAttribute("aria-pressed", "true");
+    expect(toggles[1]).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("'저장됨' 필터를 누르면 저장된 카드만 남는다 (#11)", () => {
+    render(
+      <WordCardList cards={[{ ...mizu, bookmarked: true }, aki]} />,
+    );
+
+    fireEvent.click(screen.getByText("저장됨"));
+
+    expect(screen.getByText("水")).toBeInTheDocument();
+    expect(screen.queryByText("秋")).not.toBeInTheDocument();
   });
 });

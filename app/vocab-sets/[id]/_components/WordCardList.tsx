@@ -13,9 +13,16 @@ const STATUSES: { value: NonNullable<WordFilter["status"]>; label: string }[] =
     { value: "all", label: "전체" },
     { value: "review", label: "복습필요" },
     { value: "unlearned", label: "미학습" },
+    { value: "bookmarked", label: "저장됨" },
   ];
 
-export function WordCardList({ cards }: { cards: WordCard[] }) {
+export function WordCardList({
+  cards,
+  onToggleBookmark,
+}: {
+  cards: WordCard[];
+  onToggleBookmark?: (id: number) => void;
+}) {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<number | null>(null);
   const [status, setStatus] =
@@ -79,9 +86,21 @@ export function WordCardList({ cards }: { cards: WordCard[] }) {
                 )}
                 <span className="text-gray-600">{card.reading}</span>
                 <span>{card.meaningKo}</span>
-                <span className="ml-auto rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600">
                   Lv.{card.level}
                 </span>
+                <button
+                  aria-label="저장"
+                  aria-pressed={card.bookmarked}
+                  onClick={() => onToggleBookmark?.(card.id)}
+                  className={
+                    card.bookmarked
+                      ? "ml-auto rounded-lg bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                      : "ml-auto rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs hover:bg-gray-50"
+                  }
+                >
+                  저장
+                </button>
               </div>
 
               {enrichmentLabel(card) && (

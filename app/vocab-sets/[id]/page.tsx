@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { EnrichProgress } from "@/app/vocab-sets/[id]/_components/EnrichProgress";
-import { WordCardList } from "@/app/vocab-sets/[id]/_components/WordCardList";
+import { WordCardListSection } from "@/app/vocab-sets/[id]/_components/WordCardListSection";
 import { toWordCard } from "@/lib/wordCards";
 
 export default async function VocabSetPage({
@@ -49,7 +49,7 @@ export default async function VocabSetPage({
       <p className="mb-6 text-sm text-gray-500">{set._count.words}개 단어</p>
       {job && <EnrichProgress jobId={job.id} />}
       <div className="mt-6">
-        <WordCardList cards={cards} />
+        <WordCardListSection cards={cards} />
       </div>
     </main>
   );

@@ -3,10 +3,19 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { QuizDirection } from "@/lib/quiz";
+import type { QuizMode } from "@/lib/srs";
 
 const DIRECTIONS: { value: QuizDirection; label: string }[] = [
-  { value: "word_to_meaning", label: "정방향 — 단어(漢字+후리가나) → 뜻" },
-  { value: "meaning_to_word", label: "역방향 — 뜻 → 단어" },
+  { value: "kanji_to_meaning", label: "한자→뜻 — 漢字를 보고 뜻 고르기" },
+  { value: "reading_to_meaning", label: "후리가나→뜻 — 읽기를 보고 뜻 고르기" },
+  { value: "meaning_to_word", label: "뜻→단어 — 뜻을 보고 단어 고르기" },
+];
+
+const MODES: { value: QuizMode; label: string }[] = [
+  { value: "review", label: "복습 우선 (기본)" },
+  { value: "all", label: "전체 랜덤" },
+  { value: "unmastered", label: "정답 제외 — 아직 못 외운 단어만" },
+  { value: "bookmarked", label: "저장 단어만" },
 ];
 
 const COUNTS = [
@@ -15,15 +24,17 @@ const COUNTS = [
   { value: "all", label: "전체" },
 ];
 
-/** 퀴즈 시작 화면: 방향·문제 수 선택 → 시작 링크. (R5 개정) */
+/** 퀴즈 시작 화면: 유형·문제 수·출제 방식 선택 → 시작 링크. (#11) */
 export function QuizStartForm({ setId }: { setId: number }) {
-  const [direction, setDirection] = useState<QuizDirection>("word_to_meaning");
+  const [direction, setDirection] =
+    useState<QuizDirection>("kanji_to_meaning");
   const [count, setCount] = useState("20");
+  const [mode, setMode] = useState<QuizMode>("review");
 
   return (
     <div className="flex flex-col gap-6">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-semibold">방향</legend>
+        <legend className="mb-2 text-sm font-semibold">유형</legend>
         {DIRECTIONS.map((d) => (
           <label
             key={d.value}
@@ -36,6 +47,24 @@ export function QuizStartForm({ setId }: { setId: number }) {
               onChange={() => setDirection(d.value)}
             />
             {d.label}
+          </label>
+        ))}
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm font-semibold">출제 방식</legend>
+        {MODES.map((m) => (
+          <label
+            key={m.value}
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm hover:bg-gray-50"
+          >
+            <input
+              type="radio"
+              name="mode"
+              checked={mode === m.value}
+              onChange={() => setMode(m.value)}
+            />
+            {m.label}
           </label>
         ))}
       </fieldset>
@@ -61,7 +90,7 @@ export function QuizStartForm({ setId }: { setId: number }) {
       </fieldset>
 
       <Link
-        href={`/vocab-sets/${setId}/quiz?direction=${direction}&count=${count}`}
+        href={`/vocab-sets/${setId}/quiz?direction=${direction}&count=${count}&mode=${mode}`}
         className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
       >
         퀴즈 시작

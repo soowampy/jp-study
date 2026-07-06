@@ -129,3 +129,69 @@ describe("selectSessionWords", () => {
     expect(selectSessionWords(words, today)).toHaveLength(5);
   });
 });
+
+describe("selectSessionWords — 출제 방식(mode) (#11)", () => {
+  const wordWith = (
+    id: number,
+    overrides: {
+      srs?: { level: number; nextReviewDate: Date; correctCount?: number } | null;
+      bookmarked?: boolean;
+    } = {},
+  ) => ({ id, srs: overrides.srs ?? null, bookmarked: overrides.bookmarked });
+
+  it("mode='all': 전체 단어에서 size만큼 선택된다", () => {
+    const words = Array.from({ length: 10 }, (_, i) => wordWith(i + 1));
+
+    const selected = selectSessionWords(words, today, 5, "all");
+
+    expect(selected).toHaveLength(5);
+    for (const w of selected) {
+      expect(words.map((x) => x.id)).toContain(w.id);
+    }
+  });
+
+  it("mode='unmastered': correctCount=0(또는 SRS 없음)인 단어만 선택된다", () => {
+    const words = [
+      wordWith(1, { srs: null }), // 미학습 → correctCount 0 취급
+      wordWith(2, {
+        srs: { level: 2, nextReviewDate: today, correctCount: 3 },
+      }),
+      wordWith(3, {
+        srs: { level: 1, nextReviewDate: today, correctCount: 0 },
+      }),
+    ];
+
+    const selected = selectSessionWords(words, today, 20, "unmastered");
+
+    expect(new Set(selected.map((w) => w.id))).toEqual(new Set([1, 3]));
+  });
+
+  it("mode='bookmarked': bookmarked=true인 단어만 선택된다", () => {
+    const words = [
+      wordWith(1, { bookmarked: true }),
+      wordWith(2, { bookmarked: false }),
+      wordWith(3, { bookmarked: true }),
+    ];
+
+    const selected = selectSessionWords(words, today, 20, "bookmarked");
+
+    expect(new Set(selected.map((w) => w.id))).toEqual(new Set([1, 3]));
+  });
+
+  it("mode 생략 시 기본값은 'review'(기존 동작)다", () => {
+    const words = [
+      wordWith(1),
+      wordWith(2, {
+        srs: {
+          level: 2,
+          nextReviewDate: new Date("2026-07-01T00:00:00Z"),
+        },
+      }),
+    ];
+
+    const selected = selectSessionWords(words, today, 20);
+
+    expect(selected[0].id).toBe(2);
+    expect(selected[1].id).toBe(1);
+  });
+});

@@ -14,6 +14,7 @@ const baseWord = {
       | string
       | null,
   enrichFailed: false,
+  bookmarked: false,
   srs: null as { level: number; nextReviewDate: Date } | null,
 };
 
@@ -95,6 +96,17 @@ describe("toWordCard", () => {
     expect(exact.needsReview).toBe(true);
     expect(future.needsReview).toBe(false);
   });
+
+  it("bookmarked 값을 그대로 카드에 매핑한다 (#11)", () => {
+    const bookmarked = toWordCard({ ...baseWord, bookmarked: true }, today);
+    const notBookmarked = toWordCard(
+      { ...baseWord, bookmarked: false },
+      today,
+    );
+
+    expect(bookmarked.bookmarked).toBe(true);
+    expect(notBookmarked.bookmarked).toBe(false);
+  });
 });
 
 function card(overrides: Partial<WordCard>): WordCard {
@@ -106,6 +118,7 @@ function card(overrides: Partial<WordCard>): WordCard {
     synonyms: [],
     examples: [],
     enrichFailed: false,
+    bookmarked: false,
     level: 0,
     needsReview: false,
     unlearned: true,
@@ -170,5 +183,13 @@ describe("filterWordCards", () => {
     expect(
       filterWordCards([mizu, aki], { query: "みず", status: "review" }),
     ).toEqual([mizu]);
+  });
+
+  it("'저장됨' 필터는 bookmarked 단어만 남긴다 (#11)", () => {
+    const saved = card({ ...mizu, id: 3, bookmarked: true });
+
+    expect(
+      filterWordCards([mizu, aki, saved], { status: "bookmarked" }),
+    ).toEqual([saved]);
   });
 });
