@@ -3,7 +3,7 @@ import Link from "next/link";
 export function VocabSetList({
   sets,
 }: {
-  sets: { id: number; name: string }[];
+  sets: { id: number; name: string; lastStudied?: string }[];
 }) {
   if (sets.length === 0) {
     return (
@@ -25,9 +25,14 @@ export function VocabSetList({
         <li key={set.id}>
           <Link
             href={`/vocab-sets/${set.id}`}
-            className="block rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm hover:bg-gray-50"
+            className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm hover:bg-gray-50"
           >
-            {set.name}
+            <span>{set.name}</span>
+            {set.lastStudied && (
+              <span className="text-xs text-gray-500">
+                마지막 학습: {set.lastStudied}
+              </span>
+            )}
           </Link>
         </li>
       ))}

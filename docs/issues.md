@@ -189,6 +189,64 @@ Next.js(App Router, TS) + Tailwind + Prisma + 로컬 SQLite 셋업. `VocabSet/Wo
 
 ---
 
+## #12. 하단 고정 내비게이션 (홈·뒤로가기·앞으로가기)
+
+**수직 슬라이스 검증**: 어느 페이지에서든 하단바로 홈 이동, 뒤로가기, 앞으로가기를 할 수 있다. (2026-07-06 3차 피드백 — spec-fixed R10 3차 개정)
+
+모든 페이지 하단에 고정된 내비게이션 바. 홈(`/`)·뒤로가기·앞으로가기 3버튼. 뒤로/앞으로는 브라우저 세션 히스토리를 그대로 사용하며, 이동할 히스토리가 없으면 해당 버튼을 비활성화한다. 히스토리 위치·길이는 순수 리듀서(`lib/navHistory.ts`)로 관리해 단위 테스트 가능하게 만든다.
+
+### Acceptance Criteria
+- [ ] Given 아무 페이지, When 하단을 보면, Then 홈·뒤로가기·앞으로가기 3개 버튼이 보인다.
+- [ ] Given 히스토리 position=0(이전 없음), When 상태를 계산하면, Then canGoBack=false다.
+- [ ] Given 히스토리 마지막 위치(다음 없음), When 상태를 계산하면, Then canGoForward=false다.
+- [ ] Given 새 페이지로 이동, When 상태를 갱신하면, Then position이 1 증가하고 이후 forward 기록은 잘린다.
+- [ ] Given 뒤로가기 동작 후, When 상태를 보면, Then position이 1 감소한다(0 미만으로 내려가지 않음).
+- [ ] Given 앞으로가기 동작 후, When 상태를 보면, Then position이 1 증가한다(마지막 위치를 넘지 않음).
+- [ ] Given canGoBack=false, When 뒤로가기 버튼을 보면, Then 비활성화돼 있다.
+- [ ] Given canGoForward=false, When 앞으로가기 버튼을 보면, Then 비활성화돼 있다.
+- [ ] Given 홈 버튼, When 클릭하면, Then `/`로 이동하는 링크다.
+
+**의존성**: #10 (글로벌 헤더와 같은 레이아웃 패턴 재사용)
+
+---
+
+## #13. 단어장 관리 — 이름 수정 + 삭제
+
+**수직 슬라이스 검증**: 단어장 상세 페이지 제목을 클릭해 이름을 고치거나, 삭제 버튼으로 단어장을 지우고 홈으로 돌아갈 수 있다. (2026-07-06 3차 피드백 — spec-fixed R4 3차 개정)
+
+`lib/vocabSet.ts`에 `renameVocabSet`(빈 이름 거부) · `deleteVocabSet`(cascade) 추가. 상세 페이지 제목을 인라인 편집 컴포넌트로, 삭제 버튼은 `confirm()` 확인 후 삭제하고 홈으로 이동.
+
+### Acceptance Criteria
+- [ ] Given 공백만 있는 이름, When renameVocabSet을 호출하면, Then 에러를 던지고 이름이 바뀌지 않는다.
+- [ ] Given 유효한 이름, When renameVocabSet을 호출하면, Then VocabSet.name이 갱신된다.
+- [ ] Given 단어장, When deleteVocabSet을 호출하면, Then VocabSet과 소속 Word/WordSrs가 cascade 삭제된다.
+- [ ] Given 제목 텍스트, When 클릭하면, Then 입력창(편집 모드)으로 바뀐다.
+- [ ] Given 입력창에서 유효한 이름 입력 후 Enter, When 저장하면, Then onSave(name)이 호출되고 보기 모드로 돌아간다.
+- [ ] Given 입력창이 빈 문자열, When 저장을 시도하면, Then onSave가 호출되지 않는다.
+- [ ] Given 삭제 버튼, When 클릭 후 confirm에서 확인하면, Then onDelete가 호출된다.
+- [ ] Given 삭제 버튼, When 클릭 후 confirm에서 취소하면, Then onDelete가 호출되지 않는다.
+
+**의존성**: #6 (단어장 상세 페이지가 있어야 제목·삭제 UI를 붙일 수 있음)
+
+---
+
+## #14. 마지막 학습 날짜 표시
+
+**수직 슬라이스 검증**: 단어장 상세와 홈 목록에서 "마지막 학습: n일 전"을 본다. (2026-07-06 3차 피드백 — spec-fixed R4 3차 개정)
+
+`lib/vocabSet.ts`에 `getLastStudiedAt(setId)`(단어장 소속 단어들의 `QuizAttempt.answeredAt` 최댓값, 기록 없으면 null) + `formatLastStudied(date, today)`(순수 함수: "오늘"/"n일 전"/"학습 기록 없음") 추가. 단어장 상세·홈 목록에 표시.
+
+### Acceptance Criteria
+- [ ] Given 학습 기록이 없는 단어장, When getLastStudiedAt을 호출하면, Then null을 반환한다.
+- [ ] Given 단어장 소속 단어에 여러 QuizAttempt, When getLastStudiedAt을 호출하면, Then 가장 최신 answeredAt을 반환한다.
+- [ ] Given null, When formatLastStudied를 호출하면, Then "학습 기록 없음"을 반환한다.
+- [ ] Given 오늘 날짜, When formatLastStudied를 호출하면, Then "오늘"을 반환한다.
+- [ ] Given 3일 전 날짜, When formatLastStudied를 호출하면, Then "3일 전"을 반환한다.
+
+**의존성**: #7 (QuizAttempt 기록이 있어야 의미), #6 (단어장 상세·홈 목록에 표시)
+
+---
+
 ## 의존성 그래프
 
 ```
@@ -203,4 +261,7 @@ Next.js(App Router, TS) + Tailwind + Prisma + 로컬 SQLite 셋업. `VocabSet/Wo
                         → #9 대시보드
                            → #10 UI/UX 개선 (네비·퀴즈 UX·로딩·디자인)
                               → #11 퀴즈 옵션 확장 (유형 3종·출제 방식 4종·단어 저장)
+                              → #12 하단 고정 내비게이션 (#10에 의존, #11과 독립)
+                              → #13 단어장 관리(이름 수정·삭제) (#6에 의존, #11·#12와 독립)
+                              → #14 마지막 학습 날짜 표시 (#6·#7에 의존, #11·#12·#13과 독립)
 ```

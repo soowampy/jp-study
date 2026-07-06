@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { computeDashboard, type SetProgress } from "@/lib/dashboard";
+import { getLastStudiedAt, formatLastStudied } from "@/lib/vocabSet";
 import { ProgressDashboard } from "@/app/_components/ProgressDashboard";
 import { VocabSetList } from "@/app/_components/VocabSetList";
 
@@ -22,6 +23,13 @@ export default async function Home() {
     totalWords: s.words.length,
     progressRate: computeDashboard(s.words, today).progressRate,
   }));
+  const setsWithLastStudied = await Promise.all(
+    sets.map(async (s) => ({
+      id: s.id,
+      name: s.name,
+      lastStudied: formatLastStudied(await getLastStudiedAt(s.id), today),
+    })),
+  );
 
   return (
     <main className="mx-auto max-w-2xl p-8">
@@ -31,7 +39,7 @@ export default async function Home() {
           <ProgressDashboard stats={stats} sets={setProgress} />
         </div>
       )}
-      <VocabSetList sets={sets} />
+      <VocabSetList sets={setsWithLastStudied} />
     </main>
   );
 }
