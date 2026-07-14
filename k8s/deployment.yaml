@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jp-study
+  namespace: jp-study
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jp-study
+  template:
+    metadata:
+      labels:
+        app: jp-study
+    spec:
+      containers:
+        - name: jp-study
+          image: asia-northeast3-docker.pkg.dev/my-gitaiops-project-959639/jp-study/app:v0.1.0
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              value: file:/app/data/dev.db
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: jp-study-secrets
+                  key: GEMINI_API_KEY
+          volumeMounts:
+            - name: db
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: db
+          persistentVolumeClaim:
+            claimName: jp-study-db-pvc

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   webpack: (config, { dev }) => {
     if (dev) {
       // SQLite(prisma/dev.db) 쓰기가 dev 파일 감시에 걸려 Fast Refresh를 유발하지 않도록 제외.

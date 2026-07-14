@@ -4,6 +4,8 @@ import { getLastStudiedAt, formatLastStudied } from "@/lib/vocabSet";
 import { ProgressDashboard } from "@/app/_components/ProgressDashboard";
 import { VocabSetList } from "@/app/_components/VocabSetList";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const sets = await prisma.vocabSet.findMany({
     orderBy: { createdAt: "desc" },
