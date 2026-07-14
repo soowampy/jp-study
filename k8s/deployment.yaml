@@ -15,6 +15,8 @@ spec:
       labels:
         app: jp-study
     spec:
+      securityContext:
+        fsGroup: 999
       containers:
         - name: jp-study
           image: asia-northeast3-docker.pkg.dev/my-gitaiops-project-959639/jp-study/app:v0.1.0
